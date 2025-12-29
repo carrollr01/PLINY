@@ -1,20 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { supabase } from '@/lib/supabase'
-import twilio from 'twilio'
+import Telnyx from 'telnyx'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-)
+const telnyx = new Telnyx(process.env.TELNYX_API_KEY)
 
 export async function POST(req: Request) {
-  const formData = await req.formData()
-  const userMessage = formData.get('Body') as string
-  const fromNumber = formData.get('From') as string
+  const body = await req.json()
+  
+  // Telnyx sends data differently than Twilio
+  const data = body.data
+  const eventType = data?.event_type
+  
+  // Only process inbound messages
+  if (eventType !== 'message.received') {
+    return new Response('OK', { status: 200 })
+  }
+  
+  const payload = data.payload
+  const userMessage = payload.text
+  const fromNumber = payload.from.phone_number
 
   if (!userMessage) {
     return new Response('No message received', { status: 400 })
@@ -22,7 +30,6 @@ export async function POST(req: Request) {
 
   // Get Claude's response
   const systemPrompt = `You are a no-nonsense accountability coach tracking activities.
-
 When user logs an activity, extract:
 - Domain (work/reading/social/fitness/screen/philos/other)
 - Duration if mentioned
@@ -42,13 +49,11 @@ Respond briefly, ask one follow-up if needed. Keep it under 2 sentences. Be dire
       ? response.content[0].text 
       : 'Error processing message'
 
-    // TODO: Parse and save to database (we'll add this in Day 2)
-
-    // Send SMS reply via Twilio
-    await twilioClient.messages.create({
-      body: reply,
-      from: process.env.TWILIO_PHONE_NUMBER,
+    // Send SMS reply via Telnyx
+    await telnyx.messages.create({
+      from: process.env.TELNYX_PHONE_NUMBER,
       to: fromNumber,
+      text: reply,
     })
 
     return new Response('Message sent', { status: 200 })

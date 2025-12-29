@@ -6,7 +6,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-const telnyx = new Telnyx(process.env.TELNYX_API_KEY)
+const telnyx = new Telnyx({
+  apiKey: process.env.TELNYX_API_KEY || '',
+})
 
 export async function POST(req: Request) {
   const body = await req.json()
@@ -50,7 +52,7 @@ Respond briefly, ask one follow-up if needed. Keep it under 2 sentences. Be dire
       : 'Error processing message'
 
     // Send SMS reply via Telnyx
-    await telnyx.messages.create({
+    await telnyx.messages.send({
       from: process.env.TELNYX_PHONE_NUMBER,
       to: fromNumber,
       text: reply,

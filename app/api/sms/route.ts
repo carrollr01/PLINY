@@ -30,8 +30,16 @@ export async function POST(req: Request) {
     return new Response('No message received', { status: 400 })
   }
 
-  // Get Claude's response
+  // Inject current date context
+  const today = new Date().toISOString().split('T')[0]
+  const todayDate = new Date()
+  const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][todayDate.getDay()]
+
+  // Get Claude's response (using the same logic as test route)
   const systemPrompt = `You are a no-nonsense accountability coach tracking activities.
+  
+Current Date: ${today} (${dayName})
+
 When user logs an activity, extract:
 - Domain (work/reading/social/fitness/screen/philos/other)
 - Duration if mentioned
@@ -41,7 +49,7 @@ Respond briefly, ask one follow-up if needed. Keep it under 2 sentences. Be dire
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-3-haiku-20240307',
       max_tokens: 512,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],

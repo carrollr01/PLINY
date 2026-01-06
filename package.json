@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "diagnostic": "node scripts/simple-diagnostic.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -29,6 +30,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

@@ -30,16 +30,52 @@ export async function POST(req: Request) {
     return new Response('No message received', { status: 400 })
   }
 
-  // Inject current date context
-  const today = new Date().toISOString().split('T')[0]
-  const todayDate = new Date()
-  const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][todayDate.getDay()]
+  // Handle keyword commands (case-insensitive)
+  const normalizedMessage = userMessage.trim().toUpperCase()
+  let reply = ''
 
-  // Get Claude's response (using the same logic as test route)
-  const systemPrompt = `You are a no-nonsense accountability coach tracking activities.
-  
-Current Date: ${today} (${dayName})
+  try {
+    // Handle START keyword
+    if (normalizedMessage === 'START' || normalizedMessage === 'SUBSCRIBE' || normalizedMessage === 'YES') {
+      reply = "Pliny: Thanks for subscribing to our productivity tracking service! Reply HELP for help. Message frequency may vary based on your usage. Msg&data rates may apply. Consent is not a condition of purchase. Reply STOP to opt out."
 
+      await telnyx.messages.send({
+        from: process.env.TELNYX_PHONE_NUMBER,
+        to: fromNumber,
+        text: reply,
+      })
+
+      return new Response('Message sent', { status: 200 })
+    }
+
+    // Handle STOP keyword
+    if (normalizedMessage === 'STOP' || normalizedMessage === 'UNSUBSCRIBE' || normalizedMessage === 'CANCEL' || normalizedMessage === 'END' || normalizedMessage === 'QUIT') {
+      reply = "Pliny: You are unsubscribed and will receive no further messages."
+
+      await telnyx.messages.send({
+        from: process.env.TELNYX_PHONE_NUMBER,
+        to: fromNumber,
+        text: reply,
+      })
+
+      return new Response('Message sent', { status: 200 })
+    }
+
+    // Handle HELP keyword
+    if (normalizedMessage === 'HELP' || normalizedMessage === 'INFO') {
+      reply = "Pliny: Please reach out to us at rcarrol6@nd.edu or +1 (443) 895-8558 for help. Visit https://pliny-beta.vercel.app for more information."
+
+      await telnyx.messages.send({
+        from: process.env.TELNYX_PHONE_NUMBER,
+        to: fromNumber,
+        text: reply,
+      })
+
+      return new Response('Message sent', { status: 200 })
+    }
+
+    // Regular message - Get Claude's response
+    const systemPrompt = `You are a no-nonsense accountability coach tracking activities.
 When user logs an activity, extract:
 - Domain (work/reading/social/fitness/screen/philos/other)
 - Duration if mentioned
@@ -47,7 +83,6 @@ When user logs an activity, extract:
 
 Respond briefly, ask one follow-up if needed. Keep it under 2 sentences. Be direct.`
 
-  try {
     const response = await anthropic.messages.create({
       model: 'claude-3-haiku-20240307',
       max_tokens: 512,
@@ -55,8 +90,8 @@ Respond briefly, ask one follow-up if needed. Keep it under 2 sentences. Be dire
       messages: [{ role: 'user', content: userMessage }],
     })
 
-    const reply = response.content[0].type === 'text' 
-      ? response.content[0].text 
+    reply = response.content[0].type === 'text'
+      ? response.content[0].text
       : 'Error processing message'
 
     // Send SMS reply via Telnyx
